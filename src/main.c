@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <wand/MagickWand.h>
+#include "EAPixel.h"
 
 int main(int argc, char **argv)
 {
@@ -32,7 +33,6 @@ int main(int argc, char **argv)
 
 	//Initialize the pixels that we'll be using
 	MagickPixelPacket tl,tc,tr,ml,mc,mr,bl,bc,br;
-	PixelWand *newPix = NewPixelWand();
 
 	if(status == MagickFalse)
 	{
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 		PixelWand **prevLine;
 		PixelWand **curLine;
 		PixelWand **nextLine;
-		if(y != 0)
+		if(y == 0)
 		{	
 			curLine = PixelGetNextIteratorRow(iterator,&width);
 			nextLine = PixelGetNextIteratorRow(iterator,&width);
@@ -58,57 +58,41 @@ int main(int argc, char **argv)
 		{
 			prevLine = PixelGetPreviousIteratorRow(iterator, &width);
 			curLine = PixelGetNextIteratorRow(iterator, &width);
-			nextLine = NULL;
 		}
 		for(x = 0; x<(long)MagickGetImageWidth(image_wand); x++)
 		{
-			MagickPixelPacket *px = newPix.pixel;
-			int numpix = 0;
 			if(y>0)
 			{
 				PixelGetMagickColor(prevLine[x],&tc);
 				if(x>0)
 					PixelGetMagickColor(prevLine[x-1],&tl);
-				else
-					tl = NULL;
-				if(x < width)
+				if(x < (width-1))
 					PixelGetMagickColor(prevLine[x+1],&tr);
-				else
-					tr = NULL;
 			}
 			else
 			{
-				tl = NULL;
+				/*tl = NULL;
 				tc = NULL;
-				tr = NULL;
+				tr = NULL;*/
 			}
 			if(y<MagickGetImageHeight(image_wand))
 			{
 				PixelGetMagickColor(nextLine[x],&bc);
 				if(x>0)
 					PixelGetMagickColor(nextLine[x-1],&bl);
-				else
-					bl = NULL;
-				if(x < width)
+				if(x < (width-1))
 					PixelGetMagickColor(nextLine[x+1],&br);
-				else
-					br = NULL;
 			}
 			else
 			{
-				bl = NULL;
+				/*bl = NULL;
 				bc = NULL;
-				br = NULL;
+				br = NULL;*/
 			}
 			if(x>0)
 				PixelGetMagickColor(curLine[x-1],&ml);
-			else
-				ml = NULL;
-			if(x<width)
+			if(x<(width-1))
 				PixelGetMagickColor(curLine[x+1],&mr);
-			else
-				mr = NULL;
-
 			PixelGetMagickColor(curLine[x],&mc);
 		}
 		(void)PixelSyncIterator(iterator);

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-gcc -g -o ../bin/main ./main.c $(pkg-config --cflags --libs MagickWand)  
+gcc -g -o ../bin/main ./*.c $(pkg-config --cflags --libs MagickWand)  
