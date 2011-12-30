@@ -18,7 +18,6 @@ int main(int argc, char **argv)
 	
 	long y;
 	MagickBooleanType status;
-	MagickPixelPacket pixel;
 	MagickWand *image_wand;
 	PixelIterator *iterator;
 	PixelWand **pixels;
@@ -31,24 +30,86 @@ int main(int argc, char **argv)
 	status = MagickReadImage(image_wand,argv[1]);
 	iterator = NewPixelIterator(image_wand);
 
+	//Initialize the pixels that we'll be using
+	MagickPixelPacket tl,tc,tr,ml,mc,mr,bl,bc,br;
+	PixelWand *newPix = NewPixelWand();
+
 	if(status == MagickFalse)
 	{
 		printf("Bad Stuff!!");
 	}
 	for (y = 0; y<(long)MagickGetImageHeight(image_wand); y++)
 	{
-		pixels = PixelGetNextIteratorRow(iterator,&width);
+		PixelWand **prevLine;
+		PixelWand **curLine;
+		PixelWand **nextLine;
+		if(y != 0)
+		{	
+			curLine = PixelGetNextIteratorRow(iterator,&width);
+			nextLine = PixelGetNextIteratorRow(iterator,&width);
+		}
+		else if(y < (MagickGetImageHeight(image_wand)-1))
+		{
+			prevLine = PixelGetPreviousIteratorRow(iterator, &width);
+			curLine = PixelGetNextIteratorRow(iterator, &width);
+			nextLine = PixelGetNextIteratorRow(iterator, &width);
+		}
+		else
+		{
+			prevLine = PixelGetPreviousIteratorRow(iterator, &width);
+			curLine = PixelGetNextIteratorRow(iterator, &width);
+			nextLine = NULL;
+		}
 		for(x = 0; x<(long)MagickGetImageWidth(image_wand); x++)
 		{
-			if (x%3 == 0 || y%3 == 0)
+			MagickPixelPacket *px = newPix.pixel;
+			int numpix = 0;
+			if(y>0)
 			{
-				//MagickGetImagePixelColor(image_wand,x,y,color);
-				//PixelSetColor(color, "#0000ff");
-				PixelGetMagickColor(pixels[x], &pixel);
-				pixel.red+=15000;
-				PixelSetMagickColor(pixels[x], &pixel);
-			//	PixelSetColor(pixels[x], "#0000ff");	
+				PixelGetMagickColor(prevLine[x],&tc);
+				if(x>0)
+					PixelGetMagickColor(prevLine[x-1],&tl);
+				else
+					tl = NULL;
+				if(x < width)
+					PixelGetMagickColor(prevLine[x+1],&tr);
+				else
+					tr = NULL;
 			}
+			else
+			{
+				tl = NULL;
+				tc = NULL;
+				tr = NULL;
+			}
+			if(y<MagickGetImageHeight(image_wand))
+			{
+				PixelGetMagickColor(nextLine[x],&bc);
+				if(x>0)
+					PixelGetMagickColor(nextLine[x-1],&bl);
+				else
+					bl = NULL;
+				if(x < width)
+					PixelGetMagickColor(nextLine[x+1],&br);
+				else
+					br = NULL;
+			}
+			else
+			{
+				bl = NULL;
+				bc = NULL;
+				br = NULL;
+			}
+			if(x>0)
+				PixelGetMagickColor(curLine[x-1],&ml);
+			else
+				ml = NULL;
+			if(x<width)
+				PixelGetMagickColor(curLine[x+1],&mr);
+			else
+				mr = NULL;
+
+			PixelGetMagickColor(curLine[x],&mc);
 		}
 		(void)PixelSyncIterator(iterator);
 	}
