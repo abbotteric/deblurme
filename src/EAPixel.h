@@ -8,3 +8,5 @@ typedef struct _EAPixel
 }EAPixel;
 
 EAPixel* NewEAPixel(void);
+
+void DestroyEAPixel(EAPixel *px);
