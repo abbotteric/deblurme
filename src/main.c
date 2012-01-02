@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 	PixelIterator *iterator;
 //	PixelWand **pixels;
 	register long x;
-	unsigned long width;
+//	unsigned long width;
 	PixelWand *color = NewPixelWand();
 
 	MagickWandGenesis();
@@ -35,13 +35,15 @@ int main(int argc, char **argv)
 //	MagickPixelPacket tl,tc,tr,ml,mc,mr,bl,bc,br;
 	EAPixel *tl,*tc,*tr,*ml,*mc,*mr,*bl,*bc,*br;
 	EAPixel **pixels = malloc(9*sizeof(EAPixel*));
-
+	int pixcount;
 
 	if(status == MagickFalse)
 	{
 		printf("Bad Stuff!!");
 	}
-	for (y = 0; y<(long)MagickGetImageHeight(image_wand); y++)
+	long height = MagickGetImageHeight(image_wand);
+	long width = MagickGetImageWidth(image_wand);
+	for (y = 0; y<height/*(long)MagickGetImageHeight(image_wand)*/; y++)
 	{
 		PixelWand **prevLine;
 		PixelWand **curLine;
@@ -62,25 +64,34 @@ int main(int argc, char **argv)
 			prevLine = PixelGetPreviousIteratorRow(iterator, &width);
 			curLine = PixelGetNextIteratorRow(iterator, &width);
 		}
-		for(x = 0; x<(long)MagickGetImageWidth(image_wand); x++)
+		for(x = 0; x<width/*(long)MagickGetImageWidth(image_wand)*/; x++)
 		{
-			int pixcount = 0;
+			pixcount = 0;
 			if(y>0)
 			{
-				pixcount++;
 				tc = NewEAPixel();
+				tc->x = 0;
+				tc->y = 1;
 				PixelGetMagickColor(prevLine[x],&(tc->px));
+				pixels[pixcount] = tc;
+				pixcount++;
 				if(x>0)
 				{
-					pixcount++;
 					tl = NewEAPixel();	
+					tl->x = -1;
+					tl->y = 1;
 					PixelGetMagickColor(prevLine[x-1],&(tl->px));
+					pixels[pixcount] = tl;
+					pixcount++;
 				}
 				if(x < (width-1))
 				{	
-					pixcount++;
 					tr = NewEAPixel();	
+					tr->x = 1;
+					tr->y = 1;
 					PixelGetMagickColor(prevLine[x+1],&(tr->px));
+					pixels[pixcount] = tr;
+					pixcount++;
 				}
 			}
 			else
@@ -92,12 +103,16 @@ int main(int argc, char **argv)
 			if(y<MagickGetImageHeight(image_wand))
 			{
 				bc = NewEAPixel();
+				bc->x = 0;
+				bc->y = -1;
 				PixelGetMagickColor(nextLine[x],&(bc->px));
 				pixels[pixcount] = bc;
 				pixcount++;
 				if(x>0)
 				{
 					bl = NewEAPixel();
+					bl->x = -1;
+					bl->y = -1;
 					PixelGetMagickColor(nextLine[x-1],&(bl->px));
 					pixels[pixcount] = bl;	
 					pixcount++;
@@ -105,6 +120,8 @@ int main(int argc, char **argv)
 				if(x < (width-1))
 				{
 					br = NewEAPixel();
+					br->x = 1;
+					br->y = -1;
 					PixelGetMagickColor(nextLine[x+1],&(br->px));
 					pixels[pixcount] = br;
 					pixcount++;
@@ -118,19 +135,28 @@ int main(int argc, char **argv)
 			}
 			if(x>0)
 			{
-				ml = NewEAPixel();
-				PixelGetMagickColor(curLine[x-1],&(ml->px));
+			ml = NewEAPixel();
+				ml->pxwand = curLine[x-1];
+				ml->x = -1;
+				ml->y = 0;
+				PixelGetMagickColor(ml->pxwand,&(ml->px));
 				pixels[pixcount] = ml;
 				pixcount++;
+				(ml->px).red = 65000;
+				PixelSetMagickColor(curLine[x-1],&(ml->px));
 			}
 			if(x<(width-1))
 			{
 				mr = NewEAPixel();	
+				mr->x = 1;
+				mr->y = 0;
 				PixelGetMagickColor(curLine[x+1],&(mr->px));
 				pixels[pixcount] = mr;
 				pixcount++;
 			}
 			mc = NewEAPixel();
+			mc->x = 0;
+			mc->y = 0;
 			PixelGetMagickColor(curLine[x],&(mc->px));
 			pixels[pixcount] = mc;
 			pixcount++;
