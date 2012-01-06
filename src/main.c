@@ -3,27 +3,15 @@
 #include <math.h>
 #include <wand/MagickWand.h>
 #include "EAPixel.h"
+#include "fourier.h"
 
 int main(int argc, char **argv)
 {
-	/*#define ThrowWandException(wand)\
-	{\
-		char *description;\
-		ExceptionType\
-		severity;\
-		\
-		description=MagickGetException(wand,&severity);\
-		(void)fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description);\
-		exit(-1);\
-	}*/
-
 	long y;
 	MagickBooleanType status;
 	MagickWand *image_wand;
 	PixelIterator *iterator;
-//	PixelWand **pixels;
 	register long x;
-//	unsigned long width;
 	PixelWand *color = NewPixelWand();
 
 	MagickWandGenesis();
@@ -31,19 +19,59 @@ int main(int argc, char **argv)
 	status = MagickReadImage(image_wand,argv[1]);
 	iterator = NewPixelIterator(image_wand);
 
-	//Initialize the pixels that we'll be using
-//	MagickPixelPacket tl,tc,tr,ml,mc,mr,bl,bc,br;
 	EAPixel *tl,*tc,*tr,*ml,*mc,*mr,*bl,*bc,*br;
 	EAPixel **pixels = malloc(9*sizeof(EAPixel*));
 	int pixcount;
 
-	if(status == MagickFalse)
-	{
-		printf("Bad Stuff!!");
-	}
 	long height = MagickGetImageHeight(image_wand);
 	long width = MagickGetImageWidth(image_wand);
-	for (y = 0; y<height/*(long)MagickGetImageHeight(image_wand)*/; y++)
+
+	double *real_pixels = calloc(height*width,sizeof(double));
+	double *imag_pixels = calloc(height*width,sizeof(double));
+	double *output = calloc(height*width, sizeof(double));	
+
+	for(y=0;y<height;y++)
+	{
+		PixelWand **line;
+		line = PixelGetNextIteratorRow(iterator,&width);
+		for(x=0;x<width;x++)
+		{
+			MagickPixelPacket pix;
+			PixelGetMagickColor(line[x],&pix);
+			real_pixels[y*width+x] = (double)pix.red;
+			imag_pixels[y*width+x] = 0.0;
+		}
+	}
+
+	ift(width,height,real_pixels,imag_pixels,output);
+
+	MagickWand *outputWand;
+	outputWand = NewMagickWand();	
+	PixelWand *bg = NewPixelWand();
+	PixelSetColor(bg, "#000000");
+	MagickNewImage(outputWand,width,height,bg);
+	PixelIterator *outputIterator = NewPixelIterator(outputWand);
+
+	for(y=0;y<height;y++)
+	{
+		PixelWand **line;
+		line = PixelGetNextIteratorRow(outputIterator, &width);
+		for(x=0;x<width;x++)
+		{
+			MagickPixelPacket outpix;
+			PixelGetMagickColor(line[x],&outpix);
+			int value = (int)(output[y*width+x]*65535.0);
+			outpix.red = value;
+			outpix.green = value;
+			outpix.blue = value;
+			PixelSetMagickColor(line[x],&outpix);
+		}
+		(void)PixelSyncIterator(outputIterator);
+	}
+	
+	status = MagickWriteImages(outputWand,"output.png",MagickTrue);
+	
+	for (y = 0; y<height; y++)
 	{
 		PixelWand **prevLine;
 		PixelWand **curLine;
@@ -64,10 +92,16 @@ int main(int argc, char **argv)
 			prevLine = PixelGetPreviousIteratorRow(iterator, &width);
 			curLine = PixelGetNextIteratorRow(iterator, &width);
 		}
-		for(x = 0; x<width/*(long)MagickGetImageWidth(image_wand)*/; x++)
+		for(x = 0; x<width; x++)
 		{
+			tc = NewEAPixel();
+			PixelGetMagickColor(curLine[x],&(tc->px));
+			(tc->px).red = 0;
+			(tc->px).blue = 0;
+			PixelSetMagickColor(curLine[x],&(tc->px));
+			DestroyEAPixel(tc);	
 			pixcount = 0;
-			if(y>0)
+			/*if(y>0)
 			{
 				tc = NewEAPixel();
 				tc->x = 0;
@@ -96,9 +130,7 @@ int main(int argc, char **argv)
 			}
 			else
 			{
-				/*tl = NULL;
-				tc = NULL;
-				tr = NULL;*/
+			
 			}
 			if(y<MagickGetImageHeight(image_wand))
 			{
@@ -129,9 +161,7 @@ int main(int argc, char **argv)
 			}
 			else
 			{
-				/*bl = NULL;
-				bc = NULL;
-				br = NULL;*/
+			
 			}
 			if(x>0)
 			{
@@ -142,7 +172,7 @@ int main(int argc, char **argv)
 				PixelGetMagickColor(ml->pxwand,&(ml->px));
 				pixels[pixcount] = ml;
 				pixcount++;
-				(ml->px).red = 65000;
+				(ml->px).red = 600;
 				PixelSetMagickColor(curLine[x-1],&(ml->px));
 			}
 			if(x<(width-1))
@@ -159,7 +189,7 @@ int main(int argc, char **argv)
 			mc->y = 0;
 			PixelGetMagickColor(curLine[x],&(mc->px));
 			pixels[pixcount] = mc;
-			pixcount++;
+			pixcount++;*/
 		}
 		(void)PixelSyncIterator(iterator);
 	}
