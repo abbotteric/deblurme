@@ -1,0 +1,4 @@
+-write an inverse dft function to recreate the images from the frequency and phase data
+-incorporate phase data saving into the current dft function
+-implement fast fourier instead of dft
+-test convolution with an image and a filter as explained in the imagemagick site tutorial (the long one with the blue background, can be found on instapaper)
