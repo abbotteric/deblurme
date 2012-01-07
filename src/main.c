@@ -52,6 +52,7 @@ int main(int argc, char **argv)
 	MagickNewImage(outputWand,width,height,bg);
 	PixelIterator *outputIterator = NewPixelIterator(outputWand);
 
+
 	for(y=0;y<height;y++)
 	{
 		PixelWand **line;
@@ -60,7 +61,7 @@ int main(int argc, char **argv)
 		{
 			MagickPixelPacket outpix;
 			PixelGetMagickColor(line[x],&outpix);
-			int value = (int)(output[y*width+x]*65535.0);
+			int value = (int)output[y*width+x]*5000;
 			outpix.red = value;
 			outpix.green = value;
 			outpix.blue = value;
@@ -69,7 +70,7 @@ int main(int argc, char **argv)
 		(void)PixelSyncIterator(outputIterator);
 	}
 	
-	status = MagickWriteImages(outputWand,"output.png",MagickTrue);
+	status = MagickWriteImages(outputWand,"output.jpg",MagickTrue);
 	
 	for (y = 0; y<height; y++)
 	{

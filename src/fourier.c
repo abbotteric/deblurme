@@ -41,7 +41,7 @@ int dft(long length, double real_values[], double imag_values[])
 
 int fkl(int k, int l, int width, int height, double *real_values, double *imag_values, double *F_real, double *F_imag)
 {
-	printf("Progress:%3.2f%s\r",(100*(((float)k+(double)height/2.0)*(float)width+(float)l)/((float)width*(float)height)),"%");
+	printf("Progress:%3.2f%s\r",(100*(((float)l+(double)height/2.0)*(float)width+((float)k+(double)width))/((float)width*(float)height)),"%");
 	fflush(stdout);
 //	fwrite(1,"Output");
 	int x,y;
@@ -53,8 +53,8 @@ int fkl(int k, int l, int width, int height, double *real_values, double *imag_v
 	double P_real, P_imag;
 /*	P_real = calloc(height, sizeof(double));
 	P_imag = calloc(height, sizeof(double));*/
-	p_arg = -1.0*2.0*3.1415926535*(double)k/(double)height;
-	x_arg = -1.0*2.0*3.1415926535*(double)l/(double)width;
+	x_arg = -1.0*2.0*3.1415926535*(double)k/(double)width;
+	p_arg = -1.0*2.0*3.1415926535*(double)l/(double)height;
 	for(y=0;y<height;y++)
 	{
 		P_real = 0;
@@ -88,14 +88,14 @@ int ift(int width, int height, double *real_values, double *imag_values, double 
 {
 	double F_real, F_imag;
 	int k,l;
-	for(k=-(height/2);k<(height/2);k++)
+	for(l=-(height/2);l<(height/2);l++)
 	{
-		for(l=-(width/2);l<(width/2);l++)
+		for(k=-(width/2);k<(width/2);k++)
 		{
 			F_real = 0;
 			F_imag = 0;
 			fkl(k,l,width,height,real_values,imag_values,&F_real,&F_imag);
-			F_r[(k+height/2)*width+(l+width/2)] = F_real;
+			F_r[(l+height/2)*width+(k+width/2)] = F_real;
 		}
 //		printf("Real: %5.11f\n",F_real);
 	}
