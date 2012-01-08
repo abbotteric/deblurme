@@ -39,11 +39,11 @@ int dft(long length, double real_values[], double imag_values[])
 	return(1);
 }
 
-int fkl(int k, int l, int width, int height, double *real_values, double *imag_values, double *F_real, double *F_imag)
+int fkl(int k, int l, int width, int height, double *real_values, double *imag_values, double *F_real, double *F_imag, int inverse)
 {
+	float inverter = inverse ? 1.0 : -1.0;
 	printf("Progress:%3.2f%s\r",(100*(((float)l+(double)height/2.0)*(float)width+((float)k+(double)width))/((float)width*(float)height)),"%");
 	fflush(stdout);
-//	fwrite(1,"Output");
 	int x,y;
 	double x_arg, p_arg;
 	double cosx_arg,sinx_arg,cosp_arg,sinp_arg;	
@@ -51,17 +51,14 @@ int fkl(int k, int l, int width, int height, double *real_values, double *imag_v
 	double *temp_real = NULL, *temp_imag=NULL;
 	double F_r, F_i;	
 	double P_real, P_imag;
-/*	P_real = calloc(height, sizeof(double));
-	P_imag = calloc(height, sizeof(double));*/
-	x_arg = -1.0*2.0*3.1415926535*(double)k/(double)width;
-	p_arg = -1.0*2.0*3.1415926535*(double)l/(double)height;
+	x_arg = inverter*2.0*3.1415926535*(double)k/(double)width;
+	p_arg = inverter*2.0*3.1415926535*(double)l/(double)height;
 	for(y=0;y<height;y++)
 	{
 		P_real = 0;
 		P_imag = 0;
 		for(x=0;x<width;x++)
 		{
-//			x_arg = -1.0*2.0*3.1415926535*(double)k/(double)width;
 			cosx_arg = cos((double)x*x_arg);
 			sinx_arg = sin((double)x*x_arg);
 			P_real += (real_values[y*width+x]*cosx_arg - imag_values[y*width+x]*sinx_arg);
@@ -70,7 +67,6 @@ int fkl(int k, int l, int width, int height, double *real_values, double *imag_v
 		P_real = P_real/(double)width;
 		P_imag = P_imag/(double)width;
 			
-//		p_arg = -1.0*2.0*3.1415926535*(double)l/(double)height;
 		cosp_arg = cos((double)y*p_arg);
 		sinp_arg = sin((double)y*p_arg);
 		F_r += (P_real*cosp_arg - P_imag*sinp_arg);
@@ -81,10 +77,15 @@ int fkl(int k, int l, int width, int height, double *real_values, double *imag_v
 	*F_real = F_r;
 	*F_imag = F_i;
 	return 1;
+	}
+
+ikl(int k, int l, int width, int height, double *real_values, double *imag_values, double *F_real, double *F_imag)
+{
+	
 }
 
 
-int ift(int width, int height, double *real_values, double *imag_values, double *F_r)
+int fdft(int width, int height, double *real_values, double *imag_values, double *F_r, double *F_i)
 {
 	double F_real, F_imag;
 	int k,l;
@@ -94,12 +95,31 @@ int ift(int width, int height, double *real_values, double *imag_values, double 
 		{
 			F_real = 0;
 			F_imag = 0;
-			fkl(k,l,width,height,real_values,imag_values,&F_real,&F_imag);
+			fkl(k,l,width,height,real_values,imag_values,&F_real,&F_imag,0);
 			F_r[(l+height/2)*width+(k+width/2)] = F_real;
+			F_i[(l+height/2)*width+(k+width/2)] = F_imag;
 		}
 //		printf("Real: %5.11f\n",F_real);
 	}
 
+	return 1;
+}
+
+int idft(int width, int height, double *real_values, double *imag_values, double *F_r, double *F_i)
+{
+	double F_real, F_imag;
+	int k,l;
+	for(l=-(height/2);l<(height/2);l++)
+	{
+		for(k=-(width/2);k<(width/2);k++)
+		{
+			F_real = 0;
+			F_imag = 0;
+			fkl(k,l,width,height,real_values,imag_values,&F_real,&F_imag,1);
+			F_r[(l+height/2)*width+(k+width/2)] = F_real;
+			F_i[(l+height/2)*width+(k+width/2)] = F_imag;
+		}
+	}
 	return 1;
 }
 
