@@ -58,14 +58,14 @@ int main(int argc, char **argv)
 
 			MagickPixelPacket pix1;
 			PixelGetMagickColor(filter_line[x], &pix1);
-			filter_in[y*width+x][0] = ((double)pix1.red/(double)QuantumRange);;
+			filter_in[y*width+x][0] = (double)pix1.red;
 			filter_in[y*width+x][1] = 0.0;
 		}
 	}
 
 	//execute the planned fft
 	fftw_execute(original_forward);	
-//	fftw_execute(filter_forward);
+	fftw_execute(filter_forward);
 
 	//normalize the fft values
 	double scaler = (double)width*(double)height;
@@ -76,19 +76,64 @@ int main(int argc, char **argv)
 			int index = y*width+x;
 			original_in[index][0] = original_in[index][0]/scaler;
 			original_in[index][1] = original_in[index][1]/scaler;
-			//filter_in[index][0] = filter_in[index][0]/scaler;
-			//filter_in[index][1] = filter_in[index][1]/scaler;
+			filter_in[index][0] = filter_in[index][0]/scaler;
+			filter_in[index][1] = filter_in[index][1]/scaler;
 		}
 	}
-	
+
+	//find the maximum value of the filter fft values so that it can be scaled
+	float filter_real_max, filter_real_min, filter_imag_max, filter_imag_min, filter_real_scale,filter_imag_scale;
+	filter_real_max = 0.0;
+	filter_real_min = 0.0;
+	filter_imag_min = 0.0;
+	filter_imag_max = 0.0;
+
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			double filter_real = filter_in[y*width+x][0];
+			double filter_imag = filter_in[y*width+x][1];
+			if(filter_real > filter_real_max)
+			{
+				filter_real_max = filter_real;
+			}
+			if(filter_imag > filter_imag_max)
+			{
+				filter_imag_max = filter_imag;
+			}
+		}
+	}
+
+	filter_real_scale = (double)QuantumRange/(double)filter_real_max;
+	filter_imag_scale = (double)QuantumRange/(double)filter_imag_max;
+
+	//scale the filter fft image based on the quantum range
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			int i = y*width+x;
+			if(filter_in[i][0] < 0.0)
+			{
+				filter_in[i][0] = 0.0;
+			}
+			if(filter_in[i][1] < 0.0)
+			{
+				filter_in[i][1] = 0.0;
+			}
+			filter_in[i][0] = filter_in[i][0]*filter_real_scale;
+			filter_in[i][1] = filter_in[i][1]*filter_imag_scale;
+		}
+	}
+
 	//multiply the frequency-domain pixels together
 	for(y=0;y<height;y++)
 	{
 		for(x=0;x<width;x++)
 		{
-			output_fft[y*width+x][0] = original_in[y*width+x][0]*filter_in[y*width+x][0];
-			output_fft[y*width+x][1] = original_in[y*width+x][1];
-//			EAmultiply(original_in[y*width+x],filter_in[y*width+x], output_fft[y*width+x]);	
+			output_fft[y*width+x][0] = original_in[y*width+x][0]*((double)filter_in[y*width+x][0]/(double)QuantumRange);
+			output_fft[y*width+x][1] = original_in[y*width+x][1]*((double)filter_in[y*width+x][1]/(double)QuantumRange);
 		}
 	}
 
@@ -144,6 +189,6 @@ int main(int argc, char **argv)
 	outputWand = DestroyMagickWand(outputWand);
 	outputImag = DestroyMagickWand(outputImag);
 	MagickWandTerminus();
-	system("./beep");
+//	system("./beep");
 	return 0;
 }

@@ -1,3 +1,6 @@
+-The current issue (as of 1/8/12) is that when convolving (multiplying the fft output of the image and the filter image) the output has a component that is rotated 180 degrees. I cannot figure out where that is coming from but it is definitely a result of the multiplication of the ffts because if I remove that part then there is no flipping (of course the filter then has no effect either.
+
+//Done
 -write an inverse dft function to recreate the images from the frequency and phase data
 -incorporate phase data saving into the current dft function
 -implement fast fourier instead of dft

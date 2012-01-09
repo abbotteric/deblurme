@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cp output-real.jpg ~/www
+cp output-imag.jpg ~/www
