@@ -8,65 +8,92 @@
 
 int main(int argc, char **argv)
 {
+	if(argc != 3)
+	{
+		printf("\nUse: %s <image file> <filter image>\n\n",argv[0]);
+		return -1;
+	}
+
 	//set up ImageMagick stuff
 	long y;
 	MagickBooleanType status;
-	MagickWand *image_wand;
-	PixelIterator *iterator;
 	register long x;
 
 	MagickWandGenesis();
-	image_wand=NewMagickWand();
-	status = MagickReadImage(image_wand,argv[1]);
-	iterator = NewPixelIterator(image_wand);
+	MagickWand *original_wand = NewMagickWand();
+	status = MagickReadImage(original_wand,argv[1]);
+	PixelIterator *original_iterator = NewPixelIterator(original_wand);
+
+	MagickWand *filter_wand = NewMagickWand();
+	status = MagickReadImage(filter_wand, argv[2]);
+	PixelIterator *filter_iterator = NewPixelIterator(filter_wand);
 
 	//set input image stats
-	long height = MagickGetImageHeight(image_wand);
-	long width = MagickGetImageWidth(image_wand);
+	long height = MagickGetImageHeight(original_wand);
+	long width = MagickGetImageWidth(original_wand);
 
 	//set up fftw plan
-	fftw_complex *in, *out;
-	fftw_plan p;
-	in = (fftw_complex*)fftw_alloc_complex(width*height);
-	out = (fftw_complex*)fftw_alloc_complex(width*height);
-	p = fftw_plan_dft_2d(height,width,in,out,FFTW_FORWARD,FFTW_MEASURE);
+	fftw_complex *original_in, *filter_in, *output_fft;
+	fftw_plan original_forward, backward, filter_forward;
+	original_in = (fftw_complex*)fftw_alloc_complex(width*height);
+	filter_in = (fftw_complex*)fftw_alloc_complex(width*height);
+	output_fft = (fftw_complex*)fftw_alloc_complex(width*height);
+	original_forward = fftw_plan_dft_2d(height,width,original_in,original_in,FFTW_FORWARD,FFTW_MEASURE);
+	filter_forward = fftw_plan_dft_2d(height,width,filter_in,filter_in,FFTW_FORWARD,FFTW_MEASURE);	
+	backward = fftw_plan_dft_2d(height,width,output_fft,output_fft,FFTW_BACKWARD,FFTW_MEASURE);
 
 	//fill the 'in' array with pixel values
 	for(y=0;y<height;y++)
 	{
-		PixelWand **line;
-		line = PixelGetNextIteratorRow(iterator,&width);
+		PixelWand **original_line;
+		original_line = PixelGetNextIteratorRow(original_iterator,&width);
+		PixelWand **filter_line;
+		filter_line = PixelGetNextIteratorRow(filter_iterator,&width);
 		for(x=0;x<width;x++)
 		{
 			MagickPixelPacket pix;
-			PixelGetMagickColor(line[x],&pix);
-			in[y*width+x][0] = (double)pix.red;
-			in[y*width+x][1] = 0.0;
+			PixelGetMagickColor(original_line[x],&pix);
+			original_in[y*width+x][0] = (double)pix.red;
+			original_in[y*width+x][1] = 0.0;
+
+			MagickPixelPacket pix1;
+			PixelGetMagickColor(filter_line[x], &pix1);
+			filter_in[y*width+x][0] = ((double)pix1.red/(double)QuantumRange);;
+			filter_in[y*width+x][1] = 0.0;
 		}
 	}
 
 	//execute the planned fft
-	fftw_execute(p);	
+	fftw_execute(original_forward);	
+//	fftw_execute(filter_forward);
 
-	//create a new input array for the inverse fft
-	fftw_complex *newin = (fftw_complex*)fftw_alloc_complex(width*height);
-	fftw_destroy_plan(p);
-	p = fftw_plan_dft_2d(height,width,newin,in,FFTW_BACKWARD,FFTW_MEASURE);
-
-	//fill the new input array	
-	int w,h,mult;
-	for(h=0;h<height;h++)
+	//normalize the fft values
+	double scaler = (double)width*(double)height;
+	for(y=0;y<height;y++)
 	{
-		for(w=0;w<width;w++)
+		for(x=0;x<width;x++)
 		{
-			newin[h*width+w][0] = out[h*width+w][0];
-			newin[h*width+w][1] = out[h*width+w][1];
+			int index = y*width+x;
+			original_in[index][0] = original_in[index][0]/scaler;
+			original_in[index][1] = original_in[index][1]/scaler;
+			//filter_in[index][0] = filter_in[index][0]/scaler;
+			//filter_in[index][1] = filter_in[index][1]/scaler;
+		}
+	}
+	
+	//multiply the frequency-domain pixels together
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			output_fft[y*width+x][0] = original_in[y*width+x][0]*filter_in[y*width+x][0];
+			output_fft[y*width+x][1] = original_in[y*width+x][1];
+//			EAmultiply(original_in[y*width+x],filter_in[y*width+x], output_fft[y*width+x]);	
 		}
 	}
 
-	//execute the inverse fft plan
-	fftw_execute(p);
-	
+	fftw_execute(backward);
+
 	//create some empty images for output
 	MagickWand *outputWand;
 	outputWand = NewMagickWand();	
@@ -91,14 +118,14 @@ int main(int argc, char **argv)
 		{
 			MagickPixelPacket outpix;
 			PixelGetMagickColor(line[x],&outpix);
-			int value_real = (int)(in[y*width+x][0]/((float)width*(float)height));
+			int value_real = (int)output_fft[y*width+x][0];
 			outpix.red = value_real;
 			outpix.green = value_real;
 			outpix.blue = value_real;
 
 			MagickPixelPacket out_imag;
 			PixelGetMagickColor(imag_line[x], &out_imag);
-			int value_imag = (int)out[y*width+x][1];
+			int value_imag = (int)output_fft[y*width+x][1];
 			out_imag.red = value_imag;
 			out_imag.green = value_imag;
 			out_imag.blue = value_imag;
@@ -112,7 +139,8 @@ int main(int argc, char **argv)
 	
 	status = MagickWriteImages(outputWand,"output-real.jpg",MagickTrue);
 	status = MagickWriteImages(outputImag,"output-imag.jpg",MagickTrue);
-	image_wand = DestroyMagickWand(image_wand);
+	original_wand = DestroyMagickWand(original_wand);
+	filter_wand = DestroyMagickWand(filter_wand);
 	outputWand = DestroyMagickWand(outputWand);
 	outputImag = DestroyMagickWand(outputImag);
 	MagickWandTerminus();
