@@ -1,0 +1,3 @@
+#!/bin/bash
+
+afplay ../snd/beep.mp3
