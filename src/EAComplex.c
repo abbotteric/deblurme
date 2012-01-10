@@ -15,13 +15,16 @@ void EAsubtract(fftw_complex a, fftw_complex b, fftw_complex out)
 void EAmultiply(fftw_complex a, fftw_complex b, fftw_complex *out)
 {
 	(*out)[0] = (a[0]*b[0] - a[1]*b[1]);
-	(*out)[1] = (a[1]*b[0] - a[0]*b[1]);
+	(*out)[1] = (a[1]*b[0] + a[0]*b[1]);
 }
 
-void EAdivide(fftw_complex a, fftw_complex b, fftw_complex out)
+void EAdivide(fftw_complex a, fftw_complex b, fftw_complex *out)
 {
-	out[0] = ((a[0]*b[0] + a[1]*b[1])/(a[0]*a[0] + a[1]*a[1]));
-	out[1] = ((a[0]*b[1] - a[1]*b[0])/(a[0]*a[0] + a[1]*a[1]));
+	double mag = b[0]*b[0] + b[1]*b[1];
+	if(mag<0.0005)
+		mag = 0.0005;
+	(*out)[0] = (a[0]*b[0] + a[1]*b[1])/mag;
+	(*out)[1] = (a[1]*b[0] - a[0]*b[1])/mag;
 }
 
 void EAnormalize(fftw_complex *in)
