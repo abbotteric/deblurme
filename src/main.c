@@ -94,6 +94,14 @@ int main(int argc, char **argv)
 		{
 			double filter_real = filter_in[y*width+x][0];
 			double filter_imag = filter_in[y*width+x][1];
+			if(filter_in[y*width+x][0] < 0.0)
+			{
+				filter_in[y*width+x][0] = -1.0*filter_in[y*width+x][0];
+			}
+			if(filter_in[y*width+x][1] < 0.0)
+			{
+				filter_in[y*width+x][1] = -1.0*filter_in[y*width+x][1];
+			}
 			if(filter_real > filter_real_max)
 			{
 				filter_real_max = filter_real;
@@ -108,32 +116,27 @@ int main(int argc, char **argv)
 	filter_real_scale = (double)QuantumRange/(double)filter_real_max;
 	filter_imag_scale = (double)QuantumRange/(double)filter_imag_max;
 
+	printf("Filter_Real_Scale = %0.4f\n",filter_real_scale);
+	printf("Filter_Imag_Scale = %0.4f\n",filter_imag_scale);
+
 	//scale the filter fft image based on the quantum range
 	for(y=0;y<height;y++)
 	{
 		for(x=0;x<width;x++)
 		{
 			int i = y*width+x;
-			if(filter_in[i][0] < 0.0)
-			{
-				filter_in[i][0] = 0.0;
-			}
-			if(filter_in[i][1] < 0.0)
-			{
-				filter_in[i][1] = 0.0;
-			}
 			filter_in[i][0] = filter_in[i][0]*filter_real_scale;
 			filter_in[i][1] = filter_in[i][1]*filter_imag_scale;
 		}
 	}
-
+	
 	//multiply the frequency-domain pixels together
 	for(y=0;y<height;y++)
 	{
 		for(x=0;x<width;x++)
 		{
-			output_fft[y*width+x][0] = original_in[y*width+x][0]*((double)filter_in[y*width+x][0]/(2*(double)QuantumRange));
-			output_fft[y*width+x][1] = original_in[y*width+x][1]*((double)filter_in[y*width+x][1]/(2*(double)QuantumRange));
+//			EAnormalize(&filter_in[y*width+x]);
+//			EAmultiply(original_in[y*width+x], filter_in[y*width+x], &output_fft[y*width+x]);
 		}
 	}
 
@@ -163,14 +166,15 @@ int main(int argc, char **argv)
 		{
 			MagickPixelPacket outpix;
 			PixelGetMagickColor(line[x],&outpix);
-			int value_real = (int)output_fft[y*width+x][0];
+			printf("Pixel(%d,%d): %0.4f\n",x,y,filter_in[y*width+x][0]);	
+			int value_real = (int)filter_in[y*width+x][0];
 			outpix.red = value_real;
 			outpix.green = value_real;
 			outpix.blue = value_real;
 
 			MagickPixelPacket out_imag;
 			PixelGetMagickColor(imag_line[x], &out_imag);
-			int value_imag = (int)output_fft[y*width+x][1];
+			int value_imag = (int)original_in[y*width+x][1]*10000;
 			out_imag.red = value_imag;
 			out_imag.green = value_imag;
 			out_imag.blue = value_imag;
