@@ -132,8 +132,8 @@ int main(int argc, char **argv)
 	{
 		for(x=0;x<width;x++)
 		{
-			output_fft[y*width+x][0] = original_in[y*width+x][0]*((double)filter_in[y*width+x][0]/(double)QuantumRange);
-			output_fft[y*width+x][1] = original_in[y*width+x][1]*((double)filter_in[y*width+x][1]/(double)QuantumRange);
+			output_fft[y*width+x][0] = original_in[y*width+x][0]*((double)filter_in[y*width+x][0]/(2*(double)QuantumRange));
+			output_fft[y*width+x][1] = original_in[y*width+x][1]*((double)filter_in[y*width+x][1]/(2*(double)QuantumRange));
 		}
 	}
 
