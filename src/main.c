@@ -135,8 +135,18 @@ int main(int argc, char **argv)
 	{
 		for(x=0;x<width;x++)
 		{
-//			EAnormalize(&filter_in[y*width+x]);
-//			EAmultiply(original_in[y*width+x], filter_in[y*width+x], &output_fft[y*width+x]);
+			double filter_real = filter_in[y*width+x][0]/(double)QuantumRange;
+			double filter_imag = filter_in[y*width+x][1]/(double)QuantumRange;
+			double original_real = original_in[y*width+x][0];
+			double original_imag = original_in[y*width+x][1];
+		
+			fftw_complex temp_filter;
+			temp_filter[0] = filter_real;
+			temp_filter[1] = filter_imag;
+
+			EAmultiply(original_in[y*width+x],temp_filter, &output_fft[y*width+x]);
+		//	output_fft[y*width+x][0] = filter_real*original_real;
+		//	output_fft[y*width+x][1] = filter_imag*original_imag;
 		}
 	}
 
@@ -166,8 +176,8 @@ int main(int argc, char **argv)
 		{
 			MagickPixelPacket outpix;
 			PixelGetMagickColor(line[x],&outpix);
-			printf("Pixel(%d,%d): %0.4f\n",x,y,filter_in[y*width+x][0]);	
-			int value_real = (int)filter_in[y*width+x][0];
+			//printf("Pixel(%d,%d): %0.4f\n",x,y,filter_in[y*width+x][0]);	
+			int value_real = (int)output_fft[y*width+x][0];
 			outpix.red = value_real;
 			outpix.green = value_real;
 			outpix.blue = value_real;
