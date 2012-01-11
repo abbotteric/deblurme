@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 			temp_filter[0] = filter_real;
 			temp_filter[1] = filter_imag;
 
-			EAmultiply(original_in[y*width+x],temp_filter, &output_fft[y*width+x]);
+			EAdivide(original_in[y*width+x],temp_filter, &output_fft[y*width+x]);
 		//	output_fft[y*width+x][0] = filter_real*original_real;
 		//	output_fft[y*width+x][1] = filter_imag*original_imag;
 		}
