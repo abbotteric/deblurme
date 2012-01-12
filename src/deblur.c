@@ -109,8 +109,6 @@ void roll(long width, long height, double *img, long xoffset, long yoffset)
 		for(x=0;x<width;x++)
 		{
 			temp[y*width+x] = img[y*width+x];
-			if(temp[y*width+x] > 1)
-				printf("temp'd\n");
 		}
 	}
 	for(y=0;y<height;y++)
