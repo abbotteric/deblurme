@@ -90,3 +90,25 @@ int convolve(int width, int height, double *image, double *point_spread, double 
 	return 1;
 }
 
+void roll(long width, long height, double *img, long xoffset, long yoffset)
+{
+	long x,y;
+	double *temp = malloc(sizeof(double)*width*height);
+	for(x=0;x<(width*height);x++)
+		temp[x] = img[x];
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			long i = y*width+x;
+			long xnew = x+xoffset;
+			long ynew = y+yoffset;
+			if(xnew > width)
+				xnew = x-xoffset;
+			if(ynew > height)
+				ynew = y-yoffset;
+			img[ynew*width+xnew] = temp[i];
+		}
+	}
+	free(temp);
+}

@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 
 	//fill the 'in' array with pixel values
 	for(y=0;y<height;y++)
-	{
+{
 		PixelWand **original_line;
 		original_line = PixelGetNextIteratorRow(original_iterator,&width);
 		PixelWand **filter_line;
