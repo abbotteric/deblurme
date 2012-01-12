@@ -5,6 +5,7 @@
 #include "EAPixel.h"
 #include "fourier.h"
 #include <fftw3.h>
+#include "deblur.h"
 
 int main(int argc, char **argv)
 {
@@ -32,8 +33,33 @@ int main(int argc, char **argv)
 	long height = MagickGetImageHeight(original_wand);
 	long width = MagickGetImageWidth(original_wand);
 
+	double *image, *psf, *result;
+	image = malloc(sizeof(double)*width*height);
+	psf = malloc(sizeof(double)*width*height);
+	result = malloc(sizeof(double)*width*height);
+
+	for(y=0;y<height;y++)
+	{
+		PixelWand **original_line;
+		original_line = PixelGetNextIteratorRow(original_iterator,&width);
+		PixelWand **filter_line;
+		filter_line = PixelGetNextIteratorRow(filter_iterator,&width);
+		for(x=0;x<width;x++)
+		{
+			MagickPixelPacket pix;
+			PixelGetMagickColor(original_line[x],&pix);
+			image[y*width+x] = (double)pix.red;
+
+			MagickPixelPacket pix1;
+			PixelGetMagickColor(filter_line[x], &pix1);
+			psf[y*width+x] = (double)pix1.red;
+		}
+	}
+
+	roll(width,height,psf,width/2,height/2);
+	convolve(width,height,image,psf,result);
 	//set up fftw plan
-	fftw_complex *original_in, *filter_in, *output_fft;
+/*	fftw_complex *original_in, *filter_in, *output_fft;
 	fftw_plan original_forward, backward, filter_forward;
 	original_in = (fftw_complex*)fftw_alloc_complex(width*height);
 	filter_in = (fftw_complex*)fftw_alloc_complex(width*height);
@@ -151,7 +177,7 @@ int main(int argc, char **argv)
 	}
 
 	fftw_execute(backward);
-
+*/
 	//create some empty images for output
 	MagickWand *outputWand;
 	outputWand = NewMagickWand();	
@@ -177,20 +203,20 @@ int main(int argc, char **argv)
 			MagickPixelPacket outpix;
 			PixelGetMagickColor(line[x],&outpix);
 			//printf("Pixel(%d,%d): %0.4f\n",x,y,filter_in[y*width+x][0]);	
-			int value_real = (int)output_fft[y*width+x][0];
+			int value_real = (int)result[y*width+x];
 			outpix.red = value_real;
 			outpix.green = value_real;
 			outpix.blue = value_real;
 
-			MagickPixelPacket out_imag;
+		/*	MagickPixelPacket out_imag;
 			PixelGetMagickColor(imag_line[x], &out_imag);
-			int value_imag = (int)original_in[y*width+x][1]*10000;
+//			int value_imag = (int)original_in[y*width+x][1]*10000;
 			out_imag.red = value_imag;
 			out_imag.green = value_imag;
-			out_imag.blue = value_imag;
+			out_imag.blue = value_imag;*/
 
 			PixelSetMagickColor(line[x],&outpix);
-			PixelSetMagickColor(imag_line[x], &out_imag);
+//			PixelSetMagickColor(imag_line[x], &out_imag);
 		}
 		(void)PixelSyncIterator(outputIterator);
 		(void)PixelSyncIterator(output_imag_iterator);

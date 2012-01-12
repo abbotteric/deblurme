@@ -13,4 +13,3 @@ typedef struct _Pixel
 }Pixel;
 
 int convolve(int width, int height, double *image, double *point_spread, double *result);
-
