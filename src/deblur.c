@@ -54,6 +54,10 @@ int convolve(int width, int height, double *image, double *point_spread, double 
 			{
 				psf_max_imag = psf[i][1];
 			}
+			if(psf[i][0] < 0)
+				psf[i][0] = 0.0;
+			if(psf[i][1] < 0)
+				psf[i][1] = 0.0;
 		}
 	}
 
@@ -87,6 +91,12 @@ int convolve(int width, int height, double *image, double *point_spread, double 
 			result[i] = out[i][0];
 		}
 	}
+	fftw_destroy_plan(out_fft);
+	fftw_destroy_plan(img_fft);
+	fftw_destroy_plan(psf_fft);
+	fftw_free(img);
+	fftw_free(out);
+	fftw_free(psf);
 	return 1;
 }
 
@@ -94,8 +104,15 @@ void roll(long width, long height, double *img, long xoffset, long yoffset)
 {
 	long x,y;
 	double *temp = malloc(sizeof(double)*width*height);
-	for(x=0;x<(width*height);x++)
-		temp[x] = img[x];
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			temp[y*width+x] = img[y*width+x];
+			if(temp[y*width+x] > 1)
+				printf("temp'd\n");
+		}
+	}
 	for(y=0;y<height;y++)
 	{
 		for(x=0;x<width;x++)
@@ -103,9 +120,9 @@ void roll(long width, long height, double *img, long xoffset, long yoffset)
 			long i = y*width+x;
 			long xnew = x+xoffset;
 			long ynew = y+yoffset;
-			if(xnew > width)
+			if(xnew >= width)
 				xnew = x-xoffset;
-			if(ynew > height)
+			if(ynew >= height)
 				ynew = y-yoffset;
 			img[ynew*width+xnew] = temp[i];
 		}
