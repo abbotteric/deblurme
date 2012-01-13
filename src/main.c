@@ -6,91 +6,58 @@
 #include "fourier.h"
 #include <fftw3.h>
 #include "deblur.h"
+#include <string.h>
 
 int main(int argc, char **argv)
 {
 	if(argc != 3)
 	{
-		printf("\nUse: %s <image file> <filter image>\n\n",argv[0]);
-		return -1;
+//		printf("\nUse: %s <image file> <filter image>\n\n",argv[0]);
+//		return -1;
 	}
 
-	//set up ImageMagick stuff
-	long y;
-	MagickBooleanType status;
-	register long x;
+	long x,y;
 
-	MagickWandGenesis();
-	MagickWand *original_wand = NewMagickWand();
-	status = MagickReadImage(original_wand,argv[1]);
-	PixelIterator *original_iterator = NewPixelIterator(original_wand);
+	double *image, *psf, *result, *image_estimate;
+	long width, height;
+	image = openImage(argv[1],&width,&height);
+	if(argc == 3)
+	{
+		psf = openImage(argv[2],&width,&height);
+		
+		result = malloc(sizeof(double)*width*height);
+		roll(width,height,psf,width/2,height/2);
+		convolve(width,height,image,psf,result);
+		saveImage(width,height,"convolved.jpg",result,1.0);
+		return;
+	}
+	int k_max = 10;
+	int n,m,k;
+	int n_max = 4;
+	int m_max = 2;
 
-	MagickWand *filter_wand = NewMagickWand();
-	status = MagickReadImage(filter_wand, argv[2]);
-	PixelIterator *filter_iterator = NewPixelIterator(filter_wand);
-
-	//set input image stats
-	long height = MagickGetImageHeight(original_wand);
-	long width = MagickGetImageWidth(original_wand);
-
-	double *image, *psf, *result;
-	image = malloc(sizeof(double)*width*height);
 	psf = malloc(sizeof(double)*width*height);
-	result = malloc(sizeof(double)*width*height);
+	image_estimate = malloc(sizeof(double)*width*height);
 
-	for(y=0;y<height;y++)
+	createInitialPSF(width,height,image,psf);	
+	memcpy(image_estimate,image,sizeof(double)*width*height);
+	char imgname[16];	
+	for(k=0;k<k_max;k++)
 	{
-		PixelWand **original_line;
-		original_line = PixelGetNextIteratorRow(original_iterator,&width);
-		PixelWand **filter_line;
-		filter_line = PixelGetNextIteratorRow(filter_iterator,&width);
-		for(x=0;x<width;x++)
+		printf("k = %d\n",k);	
+		for(n=0;n<n_max;n++)
 		{
-			MagickPixelPacket pix;
-			PixelGetMagickColor(original_line[x],&pix);
-			image[y*width+x] = (double)pix.red;
-
-			MagickPixelPacket pix1;
-			PixelGetMagickColor(filter_line[x], &pix1);
-			psf[y*width+x] = (double)pix1.red;
+			printf("n = %d\n",n);	
+			iteratePSF(width,height,image_estimate,psf,image);
 		}
-	}
-
-	roll(width,height,psf,width/2,height/2);
-	convolve(width,height,image,psf,result);
-
-	//create some empty images for output
-	MagickWand *outputWand;
-	outputWand = NewMagickWand();	
-	PixelWand *bg = NewPixelWand();
-	PixelSetColor(bg, "#000000");
-	MagickNewImage(outputWand,width,height,bg);
-	PixelIterator *outputIterator = NewPixelIterator(outputWand);
-
-	//fill the image with the fft output
-	for(y=0;y<height;y++)
-	{
-		PixelWand **line;
-		line = PixelGetNextIteratorRow(outputIterator, &width);
-		for(x=0;x<width;x++)
+		for(m=0;m<m_max;m++)
 		{
-			MagickPixelPacket outpix;
-			PixelGetMagickColor(line[x],&outpix);
-			int value_real = (int)result[y*width+x];
-			outpix.red = value_real;
-			outpix.green = value_real;
-			outpix.blue = value_real;
-
-			PixelSetMagickColor(line[x],&outpix);
+			printf("m = %d\n",m);	
+			iterateImage(width,height,image_estimate,psf,image);
 		}
-		(void)PixelSyncIterator(outputIterator);
+		snprintf(imgname,6,"%d.jpg",k);
+		saveImage(width,height,imgname,image_estimate,1.0);
 	}
-	
-	status = MagickWriteImages(outputWand,"output-real.jpg",MagickTrue);
-	original_wand = DestroyMagickWand(original_wand);
-	filter_wand = DestroyMagickWand(filter_wand);
-	outputWand = DestroyMagickWand(outputWand);
-	MagickWandTerminus();
-//	system("./beep");
+	saveImage(width,height,"output.jpg",image_estimate,1.0);
 	return 0;
 }

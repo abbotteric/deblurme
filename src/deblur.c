@@ -3,6 +3,8 @@
 #include <wand/MagickWand.h>
 #include "fourier.h"
 #include <fftw3.h>
+#include "deblur.h"
+#include <string.h>
 
 int convolve(int width, int height, double *image, double *point_spread, double *result)
 {
@@ -126,4 +128,181 @@ void roll(long width, long height, double *img, long xoffset, long yoffset)
 		}
 	}
 	free(temp);
+}
+
+void mirror(int width, int height, double *image, int flipx, int flipy)
+{
+	int x,y;
+	double *temp = malloc(sizeof(double)*width*height);
+	memcpy(temp,image,sizeof(double)*width*height);
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			int newx = x;
+			int newy = y;	
+			if(flipx)
+				newx = width-x-1;	
+			if(flipy)
+				newy = height-y-1;
+			int index = newy*width+newx;
+			image[index] = temp[y*width+x];
+		}
+	}
+}
+
+void elementdivide(int width, int height, double *numerator, double *denominator, double * result)
+{
+	int x,y;
+	float cutoff = 0.01;
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			double denom = denominator[y*width+x];
+			if(denom < cutoff)
+				denom = cutoff;
+			result[y*width+x] = numerator[y*width+x]/denom;
+		}
+	}
+}
+
+void elementmultiply(int width, int height, double *a, double *b, double *result)
+{
+	int x,y;
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			result[y*width+x] = a[y*width+x]*b[y*width+x];
+		}
+	}
+}
+
+void normalize(int width, int height, double *input, double *result)
+{
+	int x,y;
+	double sum;
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			sum+=input[y*width+x];
+		}
+	}
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			result[y*width+x] = input[y*width+x]/sum;
+		}
+	}
+}
+
+void iteratePSF(int width, int height, double *image, double *psf, double *original_image)
+{
+	double *result1 = malloc(sizeof(double)*width*height);
+	double *divided = malloc(sizeof(double)*width*height);
+	double *correlation = malloc(sizeof(double)*width*height);
+	convolve(width,height,image,psf,result1);
+	elementdivide(width,height,original_image,result1,divided);
+	normalize(width,height,image,result1);
+	mirror(width,height,divided,1,1);
+	convolve(width,height,result1,divided,result1);
+	elementmultiply(width,height,result1,psf,psf);
+	free(result1);
+	free(divided);
+	free(correlation);
+}
+
+void iterateImage(int width, int height, double *image, double *psf, double *original_image)
+{
+	double *result = malloc(sizeof(double)*width*height);
+	double *divided = malloc(sizeof(double)*width*height);
+	double *correlation = malloc(sizeof(double)*width*height);
+	convolve(width,height,image,psf,result);
+	elementdivide(width,height,original_image,result,divided);
+	normalize(width,height,psf,result);
+	mirror(width,height,divided,1,1);
+	convolve(width,height,result,divided,result);
+	elementmultiply(width,height,result,image,image);
+	free(result);
+	free(divided);
+	free(correlation);
+}
+
+void createInitialPSF(int width, int height, double *image, double *psf)
+{
+	double *mirrored = malloc(sizeof(double)*width*height);
+	memcpy(mirrored,image,sizeof(double)*width*height);
+	mirror(width,height,mirrored,1,1);
+	convolve(width,height,image,mirrored,psf);
+	free(mirrored);
+}
+
+void saveImage(int width, int height, const char *filename, double *data, float scaler)
+{
+	MagickWandGenesis();
+	MagickWand *output;
+	output = NewMagickWand();
+	PixelWand *bg = NewPixelWand();
+	PixelSetColor(bg, "#000000");
+	MagickNewImage(output,width,height,bg);
+	PixelIterator *iterator = NewPixelIterator(output);
+	long w;
+
+	int x,y;
+	for(y=0;y<height;y++)
+	{
+		PixelWand **line;
+		line = PixelGetNextIteratorRow(iterator, &w);	
+		for(x=0;x<width;x++)
+		{
+			MagickPixelPacket outpix;
+			PixelGetMagickColor(line[x],&outpix);
+			int value = (int)(data[y*width+x]*scaler);
+			outpix.red = value;
+			outpix.blue = value;
+			outpix.green = value;
+			PixelSetMagickColor(line[x],&outpix);
+		}
+		(void)PixelSyncIterator(iterator);
+	}
+
+	MagickWriteImages(output, filename, MagickTrue);
+	DestroyMagickWand(output);
+	MagickWandTerminus();
+}
+
+double * openImage(const char *filename, long *width, long *height)
+{
+	MagickWandGenesis();
+	MagickWand *image = NewMagickWand();
+	MagickReadImage(image,filename);
+	PixelIterator *iterator = NewPixelIterator(image);
+
+	*width = MagickGetImageWidth(image);
+	*height = MagickGetImageHeight(image);
+	
+	int w,h;
+	w = *width;
+	h = *height;
+	long wid;
+
+	double *temp = malloc(sizeof(double)*w*h);
+
+	int x,y;
+	for(y=0;y<h;y++)
+	{
+		PixelWand **line = PixelGetNextIteratorRow(iterator,&wid);
+		for(x=0;x<w;x++)
+		{
+			MagickPixelPacket pix;
+			PixelGetMagickColor(line[x],&pix);
+			temp[y*w+x] = (double)pix.red;
+		}
+	}
+	return temp;	
+	DestroyMagickWand(image);
+	MagickWandTerminus();
 }
