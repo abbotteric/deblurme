@@ -5,6 +5,7 @@
 #include <fftw3.h>
 #include "deblur.h"
 #include <string.h>
+#include <assert.h>
 
 int convolve(int width, int height, double *image, double *point_spread, double *result)
 {
@@ -197,6 +198,7 @@ void normalize(int width, int height, double *input, double *result)
 			result[y*width+x] = input[y*width+x]/sum;
 		}
 	}
+	printf("Sum: %0.4f\n",sum);
 }
 
 void iteratePSF(int width, int height, double *image, double *psf, double *original_image)
@@ -237,6 +239,31 @@ void createInitialPSF(int width, int height, double *image, double *psf)
 	memcpy(mirrored,image,sizeof(double)*width*height);
 	mirror(width,height,mirrored,1,1);
 	convolve(width,height,image,mirrored,psf);
+	double min, max, eps, sum;
+	min = 10000000;
+	max = 0.0;
+	sum = 0.0;
+	eps = 0.01;
+	int x,y;
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			if(psf[y*width+x] < min)
+				min = psf[y*width+x];
+			if(psf[y*width+x] > max)
+				max = psf[y*width+x];
+			sum += psf[y*width+x];
+		}
+	}
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			psf[y*width+x] = psf[y*width+x] - min + eps*(max-min);
+			psf[y*width+x] = psf[y*width+x]/sum;
+		}
+	}
 	free(mirrored);
 }
 
@@ -305,4 +332,31 @@ double * openImage(const char *filename, long *width, long *height)
 	return temp;	
 	DestroyMagickWand(image);
 	MagickWandTerminus();
+}
+
+void scaleto(long width, long height, double *input, double *output, double scalemin, double scalemax)
+{
+	long x,y;
+	double max,min;
+	max = 0.0;
+	min = 9999999999999;
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			if(input[y*width+x] > max)
+				max = input[y*width+x];
+			if(input[y*width+x] < min)
+				min = input[y*width+x];
+		}
+	}
+	assert(max > 0);
+	double scale = scalemax/max;
+	for(y=0;y<height;y++)
+	{
+		for(x=0;x<width;x++)
+		{
+			output[y*width+x] = input[y*width+x]*scale-(scale*min)+scalemin;
+		}
+	}
 }
