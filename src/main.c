@@ -47,21 +47,38 @@ int main(int argc, char **argv)
 	double *image, *psf, *result, *image_estimate;
 	long width, height;
 	image = openImage(argv[1],&width,&height);
-	if(argc == 3)
+	if(argc == 4)
 	{
-		psf = openImage(argv[2],&width,&height);
-		
-		result = malloc(sizeof(double)*width*height);
-		roll(width,height,psf,width/2,height/2);
-		convolve(width,height,image,psf,result);
-		saveImage(width,height,"convolved.jpg",result,1.0);
-		return;
+		if(!strcmp(argv[3],"c")) 
+		{
+			psf = openImage(argv[2],&width,&height);
+			
+			result = malloc(sizeof(double)*width*height);
+			roll(width,height,psf,width/2,height/2);
+			convolve(width,height,image,psf,result);
+			saveImage(width,height,"convolved.jpg",result,1.0);
+			return;
+		}
+		else if(!strcmp(argv[3],"d"))
+		{
+			psf = openImage(argv[2], &width, &height);
+			result = malloc(sizeof(double)*width*height);
+			roll(width,height,psf,width/2,height/2);
+			deconvolve(width,height,image,psf,result);
+			saveImage(width,height,"deconvolved.jpg",result,1.0);
+			return;
+		}
+		else
+		{
+			printf("Unknown option: %s\nQuitting...\n\n",argv[3]);
+			return;
+		}
 	}
 
-	int k_max = 50;
+	int k_max = 20;
 	int n,m,k;
 	int n_max = 4;
-	int m_max = 3;
+	int m_max = 1;
 
 	psf = malloc(sizeof(double)*width*height);
 	image_estimate = malloc(sizeof(double)*width*height);
@@ -69,51 +86,52 @@ int main(int argc, char **argv)
 	double *correlation  = malloc(sizeof(double)*width*height);
 	double *image_norm = malloc(sizeof(double)*width*height);
 	result = malloc(sizeof(double)*width*height);
-
+	
 	createInitialPSF(width,height,image,psf);	
 	memcpy(image_estimate,image,sizeof(double)*width*height);
-	/*convolve(width,height,image_estimate,psf,result);
-	saveImage(width,height,"convolution.jpg",result,1.0);
-	elementdivide(width,height,image,result,division);
-	scaleto(width,height,image_estimate,result,0.0,1.0);	
-	mirror(width,height,result,1,1);
-	convolve(width,height,result,division,result);
-	elementmultiply(width,height,result,psf,result);
-	scaleto(width,height,result,result,0.0,(double)QuantumRange);
-	saveImage(width,height,"test.jpg",result,1.0);*/
 	char imgname[18];
+	long w,h;
+	w = width;
+	h = height;
 	for(k=0;k<k_max;k++)
 	{
 		updateprogress(k,k_max,50,'=');
 		for(n=0;n<n_max;n++)
 		{
-			convolve(width,height,image_estimate,psf,result);
-			elementdivide(width,height,image,result,division);
-			scaleto(width,height,image_estimate,result,0.0,1.0);
-			scaleto(width,height,division,division,0.0,1.0);
-			mirror(width,height,result,1,1);
-			convolve(width,height,result,division,result);
-			elementmultiply(width,height,result,psf,psf);
-			scaleto(width,height,psf,psf,0.0,(double)QuantumRange);
-			snprintf(imgname,8,"n%d.jpg",n);
-			saveImage(width,height,imgname,psf,1.0);
+			normalize(w,h,psf,psf);
+			convolve(w,h,psf,image_estimate,result);
+			elementdivide(w,h,image,result,division);
+			memcpy(result,image_estimate,sizeof(double)*width*height);
+			mirror(w,h,result,1,1);
+			convolve(w,h,division,result,correlation);
+			elementmultiply(w,h,correlation,psf,psf);
 		}
+		normalize(w,h,psf,psf);
+		scaleto(w,h,psf,result,0.0,(double)QuantumRange);
+		snprintf(imgname,16,"k%d.jpg",k);
+		saveImage(w,h,imgname,result,1.0);
 		for(m=0;m<m_max;m++)
 		{
-			convolve(width,height,image_estimate,psf,result);
-			elementdivide(width,height,image,result,division);
-			scaleto(width,height,psf,result,0.0,1.0);
-			scaleto(width,height,division,division,0.0,1.0);
-			mirror(width,height,result,1,1);
-			convolve(width,height,result,division,result);
-			elementmultiply(width,height,result,image_estimate,image_estimate);
-			scaleto(width,height,image_estimate,image_estimate,0.0,(double)QuantumRange);
+			convolve(w,h,image_estimate,psf,result);
+			elementdivide(w,h,image,result,division);
+			memcpy(result,psf,sizeof(double)*width*height);
+			mirror(w,h,result,1,1);
+			convolve(w,h,division,result,correlation);
+			elementmultiply(w,h,correlation,image_estimate,image_estimate);
+			snprintf(imgname,16,"i%d-%d.jpg",k,m);
+			saveImage(w,h,imgname,image_estimate,1.0);	
 		}
 		snprintf(imgname,7,"%d.jpg",k);
+		scaleto(w,h,image_estimate,image_estimate,0.0,(double)QuantumRange);
 		saveImage(width,height,imgname,image_estimate,1.0);
 	}
 	saveImage(width,height,"output.jpg",image_estimate,1.0);
 	saveImage(width,height,"outputpsf.jpg",psf,1.0);
+	elementmultiply(w,h,result,image_estimate,image_norm);
+	convolve(w,h,psf,image_estimate,result);
+	elementdivide(w,h,image,result,result);
+	mirror(w,h,result,1,1);
+	convolve(w,h,image_norm,result,image_estimate);;
 	printf("\n");
 	printf("Done!\n");
 	return 0;

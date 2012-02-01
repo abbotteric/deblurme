@@ -14,5 +14,5 @@ typedef struct _Pixel
 
 int convolve(int width, int height, double *image, double *point_spread, double *result);
 double * openImage(const char *filename, long *width, long *height);
-void scaleto(long width, long height, double *input, double *output, double scalemin, double scalemax);
+double * scaleto(long width, long height, double *input, double *output, double scalemin, double scalemax);
 void saveImage(int width, int height, const char *filename, double *data, float scaler);
