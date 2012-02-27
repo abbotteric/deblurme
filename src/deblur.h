@@ -16,3 +16,4 @@ int convolve(int width, int height, double *image, double *point_spread, double 
 double * openImage(const char *filename, long *width, long *height);
 double * scaleto(long width, long height, double *input, double *output, double scalemin, double scalemax);
 void saveImage(int width, int height, const char *filename, double *data, float scaler);
+double sum(long width, long height, double *input);

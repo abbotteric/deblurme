@@ -5,3 +5,5 @@
 -incorporate phase data saving into the current dft function
 -implement fast fourier instead of dft
 -test convolution with an image and a filter as explained in the imagemagick site tutorial (the long one with the blue background, can be found on instapaper)
+
+2/1/12 - It might be possible to use a genetic algorithm to solve this problem. Rather than randomizing over the entire possible psf (the same size as the image) take the assumption that the psf is likely a small square (3x3? 5x5?) and only use that area for randomizing. The key will be finding a good way to blend successful parents of a generation. Also it will be important to find a good way to match success of a generation.
